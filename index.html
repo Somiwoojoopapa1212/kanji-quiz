@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="한자 퀴즈"/>
+  <link rel="manifest" href="manifest.json"/>
+  <meta name="theme-color" content="#12071e"/>
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png"/>
+  <link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet"/>
+  <title>🀄 한자 퀴즈</title>
+  <style>
+    :root {
+      --bg:      #12071e;
+      --card:    #1e0f30;
+      --accent:  #f0c040;
+      --correct: #22c55e;
+      --wrong:   #ef4444;
+      --text:    #f0e6d3;
+      --muted:   rgba(240,230,211,0.45);
+      --border:  rgba(240,192,64,0.2);
+    }
+    * { box-sizing:border-box; margin:0; padding:0;
+        -webkit-tap-highlight-color:transparent; user-select:none; }
+    html,body {
+      width:100%; height:100%; overflow:hidden;
+      font-family:'Jua','Apple SD Gothic Neo',sans-serif;
+      background:var(--bg); color:var(--text);
+    }
+
+    /* ── 화면 공통 ── */
+    .screen {
+      position:fixed; inset:0; display:none;
+      flex-direction:column; align-items:center;
+      background:linear-gradient(160deg,#12071e 0%,#1e0a30 55%,#0d0515 100%);
+      overflow-y:auto; padding:24px 20px 40px;
+    }
+    .screen.active { display:flex; }
+
+    /* ── 버튼 공통 ── */
+    .btn {
+      border:none; border-radius:50px;
+      font-family:'Jua',sans-serif; cursor:pointer;
+      transition:transform .1s, opacity .1s;
+    }
+    .btn:active { transform:scale(.94); opacity:.9; }
+    .btn-primary {
+      background:var(--accent); color:#1a0800;
+      font-size:20px; padding:16px 52px;
+      box-shadow:0 4px 0 #8a6200, 0 6px 24px rgba(240,192,64,.35);
+    }
+    .btn-ghost {
+      background:rgba(255,255,255,.1); color:#fff;
+      font-size:15px; padding:11px 30px;
+      border:1px solid rgba(255,255,255,.15);
+    }
+
+    /* ══════════════════════
+       홈 화면
+    ══════════════════════ */
+    #s-home { gap:12px; justify-content:center; }
+
+    .home-logo { font-size:64px; margin-bottom:4px; animation:float 3s ease-in-out infinite; }
+    @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+
+    .home-title { font-size:32px; color:var(--accent); text-shadow:0 0 20px rgba(240,192,64,.5); }
+    .home-sub   { font-size:14px; color:var(--muted); margin-bottom:6px; }
+
+    .section-label { font-size:12px; color:var(--muted); align-self:flex-start; padding-left:2px; }
+
+    /* 난이도 선택 */
+    .level-grid {
+      display:grid; grid-template-columns:repeat(5,1fr);
+      gap:8px; width:100%; max-width:360px;
+    }
+    .level-chip {
+      background:rgba(255,255,255,.07);
+      border:2px solid rgba(255,255,255,.15);
+      border-radius:14px; padding:10px 4px;
+      color:#fff; font-family:'Jua',sans-serif;
+      font-size:13px; cursor:pointer; text-align:center;
+      transition:all .15s;
+    }
+    .level-chip .lv-icon { font-size:20px; display:block; margin-bottom:3px; }
+    .level-chip.active {
+      border-color:var(--accent);
+      background:rgba(240,192,64,.18);
+      color:var(--accent);
+    }
+
+    /* 최고점수 */
+    .best-grid {
+      display:grid; grid-template-columns:repeat(5,1fr);
+      gap:8px; width:100%; max-width:360px;
+    }
+    .best-card {
+      background:rgba(255,255,255,.05);
+      border:1px solid var(--border);
+      border-radius:12px; padding:8px 4px;
+      text-align:center;
+    }
+    .best-lv  { font-size:11px; color:var(--muted); }
+    .best-num { font-size:15px; color:var(--accent); margin-top:2px; }
+
+    /* ══════════════════════
+       퀴즈 화면
+    ══════════════════════ */
+    #s-quiz {
+      gap:0; justify-content:flex-start;
+      padding:16px 16px 24px;
+    }
+
+    /* 상단 HUD */
+    .quiz-hud {
+      display:flex; align-items:center; justify-content:space-between;
+      width:100%; max-width:420px; margin-bottom:10px;
+    }
+    .hud-progress { font-size:14px; color:var(--muted); }
+    .hud-lives    { font-size:22px; letter-spacing:2px; }
+    .hud-score    { font-size:14px; color:var(--accent); }
+
+    /* 타이머 바 */
+    .timer-wrap {
+      width:100%; max-width:420px;
+      height:6px; background:rgba(255,255,255,.12);
+      border-radius:3px; overflow:hidden; margin-bottom:16px;
+    }
+    .timer-bar {
+      height:100%; border-radius:3px;
+      background:linear-gradient(to right,var(--accent),#e8704a);
+      transition:width linear, background .3s;
+    }
+
+    /* 문제 카드 */
+    .question-card {
+      width:100%; max-width:420px;
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:22px; padding:24px 20px;
+      text-align:center; margin-bottom:16px;
+      box-shadow:0 8px 32px rgba(0,0,0,.4);
+      flex-shrink:0;
+    }
+    .q-emoji   { font-size:88px; line-height:1; margin-bottom:10px; display:block; }
+    .q-level   { font-size:11px; color:var(--muted); margin-bottom:4px; letter-spacing:1px; }
+    .q-meaning { font-size:20px; color:var(--text); }
+
+    /* 답 버튼 그리드 */
+    .answer-grid {
+      display:grid; grid-template-columns:1fr 1fr;
+      gap:10px; width:100%; max-width:420px;
+    }
+    .ans-btn {
+      background:var(--card);
+      border:2px solid rgba(255,255,255,.12);
+      border-radius:18px; padding:16px 8px;
+      cursor:pointer; transition:all .15s;
+      font-family:inherit;
+      display:flex; flex-direction:column;
+      align-items:center; gap:4px;
+    }
+    .ans-btn:hover { border-color:rgba(240,192,64,.5); background:#2a1445; }
+    .ans-char { font-size:38px; color:var(--text); line-height:1; }
+    .ans-read { font-size:11px; color:var(--muted); }
+
+    .ans-btn.correct { border-color:var(--correct); background:rgba(34,197,94,.2); }
+    .ans-btn.wrong   { border-color:var(--wrong);   background:rgba(239,68,68,.2); }
+    .ans-btn.disabled { pointer-events:none; opacity:.5; }
+    .ans-btn.correct .ans-char { color:var(--correct); }
+    .ans-btn.wrong   .ans-char { color:var(--wrong); }
+
+    /* ══════════════════════
+       결과 화면
+    ══════════════════════ */
+    #s-result { gap:14px; justify-content:center; }
+
+    .result-grade  { font-size:72px; animation:pop .4s cubic-bezier(0.36,0.07,0.19,0.97); }
+    @keyframes pop { 0%{transform:scale(0)} 70%{transform:scale(1.15)} 100%{transform:scale(1)} }
+    .result-title  { font-size:26px; color:var(--accent); text-align:center; }
+    .result-score  { font-size:48px; color:var(--accent); font-weight:900;
+                     text-shadow:0 0 20px rgba(240,192,64,.6); }
+    .result-sub    { font-size:15px; color:var(--muted); text-align:center; }
+
+    .result-stats {
+      display:flex; gap:16px;
+      background:var(--card); border:1px solid var(--border);
+      border-radius:16px; padding:16px 24px;
+    }
+    .stat-item { text-align:center; }
+    .stat-num  { font-size:24px; color:var(--text); }
+    .stat-lbl  { font-size:11px; color:var(--muted); margin-top:2px; }
+
+    .result-new { font-size:13px; color:var(--correct);
+                  background:rgba(34,197,94,.15);
+                  border:1px solid rgba(34,197,94,.3);
+                  border-radius:20px; padding:5px 16px; }
+
+    .result-btns { display:flex; flex-direction:column; gap:10px; align-items:center; width:100%; max-width:280px; }
+
+    /* ── 반응형 ── */
+    @media (max-height: 680px) {
+      .q-emoji { font-size:64px; margin-bottom:6px; }
+      .question-card { padding:16px; margin-bottom:12px; }
+    }
+    @media (display-mode: standalone) {
+      .screen { padding-top:max(24px, env(safe-area-inset-top)); }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════
+     홈 화면
+══════════════════════════════ -->
+<div class="screen active" id="s-home">
+  <div class="home-logo">🀄</div>
+  <div class="home-title">한자 퀴즈</div>
+  <div class="home-sub">이미지로 배우는 한자</div>
+
+  <div class="section-label">난이도 선택</div>
+  <div class="level-grid" id="level-grid">
+    <div class="level-chip active" data-lv="초급" onclick="selectLevel(this)">
+      <span class="lv-icon">🌱</span>초급
+    </div>
+    <div class="level-chip" data-lv="중급" onclick="selectLevel(this)">
+      <span class="lv-icon">🌿</span>중급
+    </div>
+    <div class="level-chip" data-lv="고급" onclick="selectLevel(this)">
+      <span class="lv-icon">🌳</span>고급
+    </div>
+    <div class="level-chip" data-lv="고수" onclick="selectLevel(this)">
+      <span class="lv-icon">🔥</span>고수
+    </div>
+    <div class="level-chip" data-lv="초고수" onclick="selectLevel(this)">
+      <span class="lv-icon">⚡</span>초고수
+    </div>
+  </div>
+
+  <div class="section-label">단계별 최고 점수</div>
+  <div class="best-grid" id="best-grid"></div>
+
+  <button class="btn btn-primary" onclick="startGame()">시작하기</button>
+  <button class="btn btn-ghost" onclick="showHowto()">게임 방법</button>
+</div>
+
+<!-- ══════════════════════════════
+     퀴즈 화면
+══════════════════════════════ -->
+<div class="screen" id="s-quiz">
+  <div class="quiz-hud">
+    <span class="hud-progress" id="hud-progress">1 / 15</span>
+    <span class="hud-lives"    id="hud-lives">❤️❤️❤️</span>
+    <span class="hud-score"    id="hud-score">0점</span>
+  </div>
+  <div class="timer-wrap">
+    <div class="timer-bar" id="timer-bar"></div>
+  </div>
+  <div class="question-card">
+    <span class="q-emoji"   id="q-emoji"></span>
+    <div  class="q-level"   id="q-level"></div>
+    <div  class="q-meaning" id="q-meaning"></div>
+  </div>
+  <div class="answer-grid" id="answer-grid"></div>
+</div>
+
+<!-- ══════════════════════════════
+     결과 화면
+══════════════════════════════ -->
+<div class="screen" id="s-result">
+  <div class="result-grade"  id="r-grade"></div>
+  <div class="result-title"  id="r-title"></div>
+  <div class="result-score"  id="r-score"></div>
+  <div class="result-stats">
+    <div class="stat-item">
+      <div class="stat-num" id="r-correct"></div>
+      <div class="stat-lbl">정답</div>
+    </div>
+    <div style="width:1px;background:rgba(255,255,255,.1)"></div>
+    <div class="stat-item">
+      <div class="stat-num" id="r-wrong"></div>
+      <div class="stat-lbl">오답</div>
+    </div>
+    <div style="width:1px;background:rgba(255,255,255,.1)"></div>
+    <div class="stat-item">
+      <div class="stat-num" id="r-accuracy"></div>
+      <div class="stat-lbl">정답률</div>
+    </div>
+  </div>
+  <div class="result-new" id="r-new" style="display:none">🏆 신기록!</div>
+  <div class="result-sub" id="r-sub"></div>
+  <div class="result-btns">
+    <button class="btn btn-primary" onclick="startGame()" style="width:100%">다시 도전</button>
+    <button class="btn btn-ghost"   onclick="showScreen('s-home')" style="width:100%">홈으로</button>
+  </div>
+</div>
+
+<script>
+/* ══════════════════════════════
+   한자 데이터 (75자)
+══════════════════════════════ */
+const DATA = {
+  '초급': [
+    { char:'日', emoji:'☀️', reading:'일', meaning:'해·태양' },
+    { char:'月', emoji:'🌙', reading:'월', meaning:'달' },
+    { char:'山', emoji:'⛰️', reading:'산', meaning:'산' },
+    { char:'水', emoji:'💧', reading:'수', meaning:'물' },
+    { char:'火', emoji:'🔥', reading:'화', meaning:'불' },
+    { char:'木', emoji:'🌳', reading:'목', meaning:'나무' },
+    { char:'人', emoji:'🧑', reading:'인', meaning:'사람' },
+    { char:'口', emoji:'👄', reading:'구', meaning:'입' },
+    { char:'手', emoji:'✋', reading:'수', meaning:'손' },
+    { char:'心', emoji:'❤️', reading:'심', meaning:'마음·심장' },
+    { char:'土', emoji:'🌱', reading:'토', meaning:'흙·땅' },
+    { char:'金', emoji:'🥇', reading:'금', meaning:'금·쇠' },
+    { char:'大', emoji:'🐘', reading:'대', meaning:'크다' },
+    { char:'小', emoji:'🐜', reading:'소', meaning:'작다' },
+    { char:'力', emoji:'💪', reading:'력', meaning:'힘·능력' },
+  ],
+  '중급': [
+    { char:'花', emoji:'🌸', reading:'화', meaning:'꽃' },
+    { char:'魚', emoji:'🐟', reading:'어', meaning:'물고기' },
+    { char:'鳥', emoji:'🐦', reading:'조', meaning:'새' },
+    { char:'馬', emoji:'🐴', reading:'마', meaning:'말' },
+    { char:'牛', emoji:'🐄', reading:'우', meaning:'소' },
+    { char:'車', emoji:'🚗', reading:'차', meaning:'수레·차' },
+    { char:'雨', emoji:'🌧️', reading:'우', meaning:'비' },
+    { char:'雪', emoji:'❄️', reading:'설', meaning:'눈(snow)' },
+    { char:'目', emoji:'👁️', reading:'목', meaning:'눈(eye)' },
+    { char:'耳', emoji:'👂', reading:'이', meaning:'귀' },
+    { char:'門', emoji:'🚪', reading:'문', meaning:'문·입구' },
+    { char:'石', emoji:'🪨', reading:'석', meaning:'돌' },
+    { char:'米', emoji:'🍚', reading:'미', meaning:'쌀' },
+    { char:'星', emoji:'⭐', reading:'성', meaning:'별' },
+    { char:'海', emoji:'🌊', reading:'해', meaning:'바다' },
+  ],
+  '고급': [
+    { char:'龍', emoji:'🐉', reading:'룡', meaning:'용' },
+    { char:'虎', emoji:'🐯', reading:'호', meaning:'호랑이' },
+    { char:'熊', emoji:'🐻', reading:'웅', meaning:'곰' },
+    { char:'鹿', emoji:'🦌', reading:'록', meaning:'사슴' },
+    { char:'猫', emoji:'🐱', reading:'묘', meaning:'고양이' },
+    { char:'犬', emoji:'🐶', reading:'견', meaning:'개' },
+    { char:'象', emoji:'🐘', reading:'상', meaning:'코끼리' },
+    { char:'鶴', emoji:'🦢', reading:'학', meaning:'학·두루미' },
+    { char:'亀', emoji:'🐢', reading:'구', meaning:'거북이' },
+    { char:'鯨', emoji:'🐋', reading:'경', meaning:'고래' },
+    { char:'鷹', emoji:'🦅', reading:'응', meaning:'독수리·매' },
+    { char:'蛙', emoji:'🐸', reading:'와', meaning:'개구리' },
+    { char:'狼', emoji:'🐺', reading:'랑', meaning:'늑대' },
+    { char:'猿', emoji:'🐒', reading:'원', meaning:'원숭이' },
+    { char:'兎', emoji:'🐰', reading:'토', meaning:'토끼' },
+  ],
+  '고수': [
+    { char:'嵐', emoji:'⛈️', reading:'람', meaning:'폭풍·아라시' },
+    { char:'霧', emoji:'🌫️', reading:'무', meaning:'안개' },
+    { char:'虹', emoji:'🌈', reading:'홍', meaning:'무지개' },
+    { char:'雷', emoji:'🌩️', reading:'뢰', meaning:'천둥·벼락' },
+    { char:'泉', emoji:'♨️', reading:'천', meaning:'샘·온천' },
+    { char:'滝', emoji:'💦', reading:'폭', meaning:'폭포' },
+    { char:'湖', emoji:'🏞️', reading:'호', meaning:'호수' },
+    { char:'洞', emoji:'🕳️', reading:'동', meaning:'동굴·구멍' },
+    { char:'渦', emoji:'🌀', reading:'와', meaning:'소용돌이' },
+    { char:'峰', emoji:'🗻', reading:'봉', meaning:'산봉우리' },
+    { char:'崖', emoji:'🏔️', reading:'애', meaning:'절벽·낭떠러지' },
+    { char:'炎', emoji:'🌋', reading:'염', meaning:'불꽃·화염' },
+    { char:'氷', emoji:'🧊', reading:'빙', meaning:'얼음' },
+    { char:'砂', emoji:'🏖️', reading:'사', meaning:'모래' },
+    { char:'煙', emoji:'💨', reading:'연', meaning:'연기' },
+  ],
+  '초고수': [
+    { char:'愛', emoji:'💕', reading:'애', meaning:'사랑' },
+    { char:'夢', emoji:'💭', reading:'몽', meaning:'꿈' },
+    { char:'楽', emoji:'🎵', reading:'락', meaning:'즐거움·음악' },
+    { char:'喜', emoji:'😊', reading:'희', meaning:'기쁨·기뻐하다' },
+    { char:'悲', emoji:'😢', reading:'비', meaning:'슬픔·슬프다' },
+    { char:'怒', emoji:'😡', reading:'노', meaning:'분노·화내다' },
+    { char:'恐', emoji:'😨', reading:'공', meaning:'두려움·무서움' },
+    { char:'美', emoji:'💎', reading:'미', meaning:'아름다움' },
+    { char:'友', emoji:'🤝', reading:'우', meaning:'친구·벗' },
+    { char:'勝', emoji:'🏆', reading:'승', meaning:'이기다·승리' },
+    { char:'敗', emoji:'😞', reading:'패', meaning:'지다·패배' },
+    { char:'縁', emoji:'🔗', reading:'연', meaning:'인연·연분' },
+    { char:'運', emoji:'🍀', reading:'운', meaning:'운·행운' },
+    { char:'命', emoji:'⚡', reading:'명', meaning:'목숨·운명' },
+    { char:'魂', emoji:'👻', reading:'혼', meaning:'영혼·넋' },
+  ],
+};
+
+const ALL_CHARS = Object.values(DATA).flat();
+const TIMERS   = { '초급':15, '중급':12, '고급':10, '고수':8, '초고수':6 };
+const GRADES   = [
+  { min:1400, emoji:'🌟', title:'완벽해요!' },
+  { min:1200, emoji:'🏆', title:'훌륭해요!' },
+  { min:1000, emoji:'🥇', title:'잘했어요!' },
+  { min: 700, emoji:'😊', title:'괜찮아요!' },
+  { min:   0, emoji:'💪', title:'다시 도전!' },
+];
+
+/* ══ 게임 상태 ══ */
+let level      = '초급';
+let questions  = [];
+let qIdx       = 0;
+let score      = 0;
+let lives      = 3;
+let correctCnt = 0;
+let timerID    = null;
+let timeLeft   = 0;
+let answered   = false;
+let bests      = JSON.parse(localStorage.getItem('kanji_best') || '{}');
+
+/* ══ 유틸 ══ */
+function shuffle(a) { for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]; } return a; }
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+/* ══ 홈 ══ */
+function selectLevel(el) {
+  document.querySelectorAll('.level-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  level = el.dataset.lv;
+}
+function renderBests() {
+  const g = document.getElementById('best-grid');
+  const lvs = ['초급','중급','고급','고수','초고수'];
+  g.innerHTML = lvs.map(lv => `
+    <div class="best-card">
+      <div class="best-lv">${lv}</div>
+      <div class="best-num">${bests[lv] ? bests[lv].toLocaleString() : '-'}</div>
+    </div>`).join('');
+}
+function showHowto() {
+  alert('📖 게임 방법\n\n이미지와 뜻을 보고\n알맞은 한자를 선택하세요!\n\n❤️ 라이프 3개\n⏱️ 제한 시간 내 답변\n⭐ 빠를수록 점수 UP!');
+}
+
+/* ══ 게임 시작 ══ */
+function startGame() {
+  const pool = shuffle([...DATA[level]]);
+  questions  = pool.slice(0, 15);
+  qIdx = 0; score = 0; lives = 3; correctCnt = 0;
+  showScreen('s-quiz');
+  renderQuestion();
+}
+
+/* ══ 문제 렌더 ══ */
+function renderQuestion() {
+  if (qIdx >= questions.length || lives <= 0) { endGame(); return; }
+
+  answered = false;
+  const q = questions[qIdx];
+
+  document.getElementById('hud-progress').textContent = `${qIdx+1} / ${questions.length}`;
+  document.getElementById('hud-lives').textContent    = '❤️'.repeat(lives) + '🖤'.repeat(3-lives);
+  document.getElementById('hud-score').textContent    = `${score.toLocaleString()}점`;
+  document.getElementById('q-emoji').textContent      = q.emoji;
+  document.getElementById('q-level').textContent      = `${level} — ${q.reading}(${q.char})`;
+  document.getElementById('q-meaning').textContent    = q.meaning;
+
+  // 4지선다 생성: 정답 1 + 오답 3
+  const wrong = shuffle(ALL_CHARS.filter(k => k.char !== q.char)).slice(0, 3);
+  const choices = shuffle([q, ...wrong]);
+
+  const grid = document.getElementById('answer-grid');
+  grid.innerHTML = choices.map(c => `
+    <button class="ans-btn" onclick="checkAnswer(this,'${c.char}','${q.char}')">
+      <span class="ans-char">${c.char}</span>
+      <span class="ans-read">${c.reading}</span>
+    </button>`).join('');
+
+  startTimer(TIMERS[level]);
+}
+
+/* ══ 타이머 ══ */
+function startTimer(sec) {
+  clearInterval(timerID);
+  timeLeft = sec;
+  const bar = document.getElementById('timer-bar');
+  bar.style.transition = 'none';
+  bar.style.width = '100%';
+  bar.style.background = 'linear-gradient(to right,#f0c040,#e8704a)';
+
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    bar.style.transition = `width ${sec}s linear`;
+    bar.style.width = '0%';
+  }));
+
+  timerID = setInterval(() => {
+    timeLeft--;
+    if (timeLeft <= 3) bar.style.background = 'linear-gradient(to right,#ef4444,#c02020)';
+    if (timeLeft <= 0) {
+      clearInterval(timerID);
+      if (!answered) timeUp();
+    }
+  }, 1000);
+}
+
+function timeUp() {
+  answered = true;
+  lives--;
+  // 정답 표시
+  const q = questions[qIdx];
+  document.querySelectorAll('.ans-btn').forEach(btn => {
+    const ch = btn.querySelector('.ans-char').textContent;
+    if (ch === q.char) btn.classList.add('correct');
+    else btn.classList.add('disabled');
+  });
+  document.getElementById('hud-lives').textContent = '❤️'.repeat(lives) + '🖤'.repeat(3-lives);
+  setTimeout(() => { qIdx++; renderQuestion(); }, 1200);
+}
+
+/* ══ 정답 체크 ══ */
+function checkAnswer(btn, selected, correct) {
+  if (answered) return;
+  answered = true;
+  clearInterval(timerID);
+
+  // 타이머 바 멈추기
+  const bar = document.getElementById('timer-bar');
+  const curW = bar.offsetWidth / bar.parentElement.offsetWidth * 100;
+  bar.style.transition = 'none';
+  bar.style.width = curW + '%';
+
+  const isCorrect = selected === correct;
+  if (isCorrect) {
+    const timeBonus = Math.round((timeLeft / TIMERS[level]) * 50);
+    score += 100 + timeBonus;
+    correctCnt++;
+    btn.classList.add('correct');
+  } else {
+    lives--;
+    btn.classList.add('wrong');
+    document.querySelectorAll('.ans-btn').forEach(b => {
+      if (b.querySelector('.ans-char').textContent === correct) b.classList.add('correct');
+      else if (b !== btn) b.classList.add('disabled');
+    });
+  }
+
+  document.getElementById('hud-score').textContent = `${score.toLocaleString()}점`;
+  document.getElementById('hud-lives').textContent = '❤️'.repeat(Math.max(0,lives)) + '🖤'.repeat(3-Math.max(0,lives));
+
+  setTimeout(() => { qIdx++; renderQuestion(); }, 900);
+}
+
+/* ══ 게임 종료 ══ */
+function endGame() {
+  clearInterval(timerID);
+  const grade = GRADES.find(g => score >= g.min) || GRADES[GRADES.length-1];
+  const isNew = !bests[level] || score > bests[level];
+  if (isNew) { bests[level] = score; localStorage.setItem('kanji_best', JSON.stringify(bests)); }
+
+  document.getElementById('r-grade').textContent    = grade.emoji;
+  document.getElementById('r-title').textContent    = grade.title;
+  document.getElementById('r-score').textContent    = `${score.toLocaleString()}점`;
+  document.getElementById('r-correct').textContent  = `${correctCnt}개`;
+  document.getElementById('r-wrong').textContent    = `${questions.length - correctCnt}개`;
+  document.getElementById('r-accuracy').textContent = `${Math.round(correctCnt/questions.length*100)}%`;
+  document.getElementById('r-sub').textContent      = `${level} · 15문제`;
+
+  const newEl = document.getElementById('r-new');
+  newEl.style.display = isNew && score > 0 ? '' : 'none';
+
+  renderBests();
+  showScreen('s-result');
+}
+
+/* ══ 초기화 ══ */
+renderBests();
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(()=>{});
+}
+</script>
+</body>
+</html>
