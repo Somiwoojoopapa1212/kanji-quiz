@@ -23,7 +23,7 @@
     .btn-ghost{background:rgba(255,255,255,.1);color:#fff;font-size:15px;padding:11px 30px;border:1px solid rgba(255,255,255,.15);}
     /* 홈 */
     #s-home{gap:12px;justify-content:center;}
-    .home-logo{font-size:64px;margin-bottom:4px;animation:float 3s ease-in-out infinite;}
+    .home-logo{width:120px;height:120px;border-radius:26px;display:block;margin:0 auto 4px;animation:float 3s ease-in-out infinite;filter:drop-shadow(0 0 20px rgba(240,192,64,.45));}
     @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
     .home-title{font-size:32px;color:var(--accent);text-shadow:0 0 20px rgba(240,192,64,.5);}
     .home-sub{font-size:14px;color:var(--muted);margin-bottom:6px;}
@@ -52,7 +52,7 @@
     .ans-btn{background:var(--card);border:2px solid rgba(255,255,255,.12);border-radius:18px;padding:16px 8px;cursor:pointer;transition:all .15s;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:4px;}
     .ans-btn:hover{border-color:rgba(240,192,64,.5);background:#2a1445;}
     .ans-char{font-size:38px;color:var(--text);line-height:1;}
-    .ans-read{font-size:11px;color:var(--muted);}
+    .ans-read{font-size:15px;color:var(--muted);font-weight:600;}
     .ans-btn.correct{border-color:var(--correct);background:rgba(34,197,94,.2);}
     .ans-btn.wrong{border-color:var(--wrong);background:rgba(239,68,68,.2);}
     .ans-btn.disabled{pointer-events:none;opacity:.5;}
@@ -78,7 +78,7 @@
 <body>
 
 <div class="screen active" id="s-home">
-  <div class="home-logo">🀄</div>
+  <img class="home-logo" src="icons/icon-512.png" alt="한자 퀴즈" />
   <div class="home-title">한자 퀴즈</div>
   <div class="home-sub">이미지로 배우는 한자 · 총 900자+</div>
   <div class="section-label">난이도 선택</div>
