@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kanji-quiz-20260507001003';
+const CACHE_NAME = 'kanji-quiz-20260507002155';
 const ASSETS = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', e => {
